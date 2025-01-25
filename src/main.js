@@ -15,6 +15,14 @@ import router from './router'
 import '@/icons' // icon
 import '@/permission' // permission control
 
+// 修改 echarts 导入方式
+import * as echarts from 'echarts'
+import VueECharts from 'vue-echarts'
+
+Vue.prototype.$echarts = echarts
+// 全局注册组件
+Vue.component('v-chart', VueECharts)
+
 /**
  * If you don't want to use mock-server
  * you want to use MockJs for mock api
@@ -39,5 +47,6 @@ new Vue({
   el: '#app',
   router,
   store,
+  
   render: h => h(App)
 })
