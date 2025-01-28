@@ -71,32 +71,69 @@
     <el-dialog
       title="开发者详情"
       :visible.sync="dialogVisible"
-      width="80%">
+      width="70%">
       <div v-if="currentDeveloper" class="developer-detail">
         <div class="info-grid">
-          <!-- 头像和项目模块 -->
+          <!-- 头像模块 -->
           <el-card class="info-card personal-details">
             <div class="avatar-section">
-              <el-avatar :src="currentDeveloper.avatarUrl" :size="80"></el-avatar>
+              <el-avatar :src="currentDeveloper.avatarUrl" :size="60"></el-avatar>
               <h2>{{ currentDeveloper.login }}</h2>
+              <p>{{ currentDeveloper.bio }}</p>
+              <p>所在地: {{ currentDeveloper.location }}</p>
             </div>
-            <h3>项目列表</h3>
-            <el-scrollbar style="height: 200px;">
+          </el-card>
+
+          <!-- 项目列表模块 -->
+          <el-card class="info-card project-details">
+            <h3>项目贡献列表</h3>
+            <el-scrollbar style="height: 150px;">
               <el-table
                 :data="currentDeveloper.projectList"
                 style="width: 100%"
-                height="200">
+                height="150">
                 <el-table-column
                   label="项目名称"
-                  width="200">
+                  width="150">
                   <template slot-scope="scope">
                     <a :href="scope.row.url" target="_blank">{{ scope.row.projectName }}</a>
                   </template>
                 </el-table-column>
-          
+               
+                <el-table-column
+                  prop="starCount"
+                  label="Star数"
+                  width="80">
+                </el-table-column>
+                <el-table-column
+                  label="分数"
+                  width="80">
+                  <template slot-scope="scope">
+                    {{ scope.row.score}}
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-scrollbar>
+          </el-card>
+
+          <!-- 开发者仓库模块 -->
+          <el-card class="info-card repository-details">
+            <h3>开发者仓库</h3>
+            <el-scrollbar style="height: 250px;">
+              <el-table
+                :data="currentDeveloper.repositoryList"
+                style="width: 100%"
+                height="250">
+                <el-table-column
+                  label="仓库名称"
+                  width="150">
+                  <template slot-scope="scope">
+                    <a :href="scope.row.url" target="_blank">{{ scope.row.projectName }}</a>
+                  </template>
+                </el-table-column>
                 <el-table-column
                   label="类型"
-                  width="120">
+                  width="80">
                   <template slot-scope="scope">
                     {{ getClassificationDescription(scope.row.classification) }}
                   </template>
@@ -104,20 +141,16 @@
                 <el-table-column
                   prop="starCount"
                   label="Star数"
-                  width="200">
+                  width="80">
                 </el-table-column>
               </el-table>
             </el-scrollbar>
           </el-card>
 
           <!-- 关系网络图模块 -->
-          <el-card class="info-card network-graph">
-            <h3>关系网络图</h3>
-            <div class="network-graph-wrapper">
-              <!-- 这里可以放置关系网络图的实现 -->
-              <p>关系网络图内容</p>
-            </div>
-          </el-card>
+          <div v-if="developerData" class="developer-detail">
+        <RelationshipNetwork :developerData="developerData" />
+         </div>
 
           <!-- 社区活跃情况九宫格 -->
           <el-card class="info-card community-activity">
@@ -320,8 +353,16 @@ export default {
         'GAME_DEVELOPMENT': '游戏开发',
         'OPEN_SOURCE_SOFTWARE_DEVELOPMENT': '开源软件开发',
         'SCRIPTING_LANGUAGE': '脚本语言'
-        }
-      return descriptions[classification] || 'Unknown Classification'
+      }
+      return descriptions[classification] || '未知分类'
+    },
+    async openDeveloperDetails(login) {
+      try {
+        this.developerData = await findRelationship(login);
+        this.dialogVisible = true;
+      } catch (error) {
+        console.error('Failed to load developer data:', error);
+      }
     }
   },
   created() {

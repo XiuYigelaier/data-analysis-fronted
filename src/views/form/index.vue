@@ -1,85 +1,174 @@
 <template>
-  <div class="app-container">
-    <el-form ref="form" :model="form" label-width="120px">
-      <el-form-item label="Activity name">
-        <el-input v-model="form.name" />
-      </el-form-item>
-      <el-form-item label="Activity zone">
-        <el-select v-model="form.region" placeholder="please select your zone">
-          <el-option label="Zone one" value="shanghai" />
-          <el-option label="Zone two" value="beijing" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="Activity time">
-        <el-col :span="11">
-          <el-date-picker v-model="form.date1" type="date" placeholder="Pick a date" style="width: 100%;" />
-        </el-col>
-        <el-col :span="2" class="line">-</el-col>
-        <el-col :span="11">
-          <el-time-picker v-model="form.date2" type="fixed-time" placeholder="Pick a time" style="width: 100%;" />
-        </el-col>
-      </el-form-item>
-      <el-form-item label="Instant delivery">
-        <el-switch v-model="form.delivery" />
-      </el-form-item>
-      <el-form-item label="Activity type">
-        <el-checkbox-group v-model="form.type">
-          <el-checkbox label="Online activities" name="type" />
-          <el-checkbox label="Promotion activities" name="type" />
-          <el-checkbox label="Offline activities" name="type" />
-          <el-checkbox label="Simple brand exposure" name="type" />
-        </el-checkbox-group>
-      </el-form-item>
-      <el-form-item label="Resources">
-        <el-radio-group v-model="form.resource">
-          <el-radio label="Sponsor" />
-          <el-radio label="Venue" />
-        </el-radio-group>
-      </el-form-item>
-      <el-form-item label="Activity form">
-        <el-input v-model="form.desc" type="textarea" />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="onSubmit">Create</el-button>
-        <el-button @click="onCancel">Cancel</el-button>
-      </el-form-item>
-    </el-form>
+  <div class="project-ranking">
+    
+    <el-tabs v-model="activeTab" @tab-click="handleTabClick">
+      <el-tab-pane
+        v-for="(category, index) in projectData"
+        :key="index"
+        :label="getClassificationDescription(category.projectClassification)"
+        :name="category.projectClassification"
+      >
+        <el-table :data="category.projects" style="width: 90%">
+          <el-table-column prop="projectName" label="项目名称" width="300">
+            <template slot-scope="scope">
+              <a :href="scope.row.url" target="_blank">{{ scope.row.projectName }}</a>
+            </template>
+          </el-table-column>
+          <el-table-column prop="description" label="描述"></el-table-column>
+        </el-table>
+      </el-tab-pane>
+    </el-tabs>
+    <div class="fixed-category-box">
+      <h4>项目分类</h4>
+      <ul>
+        <li v-for="(count, category) in classificationCount" :key="category">
+          {{ getClassificationDescription(category) }}: {{ count }}
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 
 <script>
+import * as echarts from 'echarts';
+import { fetchProjectClassificationList, fetchProjectClassificationCount } from '@/api/user';
+
 export default {
   data() {
     return {
-      form: {
-        name: '',
-        region: '',
-        date1: '',
-        date2: '',
-        delivery: false,
-        type: [],
-        resource: '',
-        desc: ''
-      }
-    }
+      activeTab: 'GAME_DEVELOPMENT',
+      projectData: [],
+      classificationCount: {}
+    };
+  },
+  created() {
+    this.loadProjectData();
+    this.loadClassificationCount();
   },
   methods: {
-    onSubmit() {
-      this.$message('submit!')
+    async loadProjectData() {
+      try {
+        const response = await fetchProjectClassificationList();
+        if (response.data.success) {
+          this.projectData = response.data.data;
+        } else {
+          console.error('Failed to load project data');
+        }
+      } catch (error) {
+        console.error('Error loading project data:', error);
+      }
     },
-    onCancel() {
-      this.$message({
-        message: 'cancel!',
-        type: 'warning'
-      })
+    async loadClassificationCount() {
+      try {
+        const response = await fetchProjectClassificationCount();
+        if (response.data.success) {
+          this.classificationCount = response.data.data;
+          this.initChart();
+        } else {
+          console.error('Failed to load classification count');
+        }
+      } catch (error) {
+        console.error('Error loading classification count:', error);
+      }
+    },
+    initChart() {
+      const chartDom = this.$refs.chart;
+      const myChart = echarts.init(chartDom);
+      const categories = Object.keys(this.classificationCount).map(this.getClassificationDescription);
+      const counts = Object.values(this.classificationCount);
+
+      const option = {
+        title: {
+          text: '项目分类数量',
+          subtext: `最高分类: ${this.getMaxCategory()}`,
+          left: 'center'
+        },
+        tooltip: {},
+        xAxis: {
+          type: 'category',
+          data: categories,
+          axisLabel: {
+            fontSize: 12 // 确保字体大小适中
+          }
+        },
+        yAxis: {
+          type: 'value'
+        },
+        series: [{
+          data: counts,
+          type: 'bar'
+        }]
+      };
+
+      myChart.setOption(option);
+    },
+    getMaxCategory() {
+      const maxCount = Math.max(...Object.values(this.classificationCount));
+      const maxCategory = Object.keys(this.classificationCount).find(
+        key => this.classificationCount[key] === maxCount
+      );
+      return this.getClassificationDescription(maxCategory);
+    },
+    handleTabClick(tab) {
+      console.log('Tab clicked:', tab.name);
+    },
+    getClassificationDescription(classification) {
+      const descriptions = {
+        'FRAMEWORK': '框架',
+        'LIBRARY_OR_MODULE': '库或模块',
+        'LARGE_MODEL_OR_MACHINE_LEARNING': '大模型或机器学习',
+        'OPEN_SOURCE_OS_AND_TOOLS': '开源操作系统和系统工具',
+        'FRONTEND_APPLICATION': '前端应用',
+        'BACKEND_SERVICE': '后端服务',
+        'WEB_FRAMEWORK': 'Web框架',
+        'GAME_DEVELOPMENT': '游戏开发',
+        'OPEN_SOURCE_SOFTWARE_DEVELOPMENT': '开源软件开发',
+        'SCRIPTING_LANGUAGE': '脚本语言'
+      };
+      return descriptions[classification] || '未知分类';
     }
   }
-}
+};
 </script>
 
 <style scoped>
-.line{
+.project-ranking {
+  padding: 20px;
+}
+
+.chart-container {
+  width: 70%; /* 增加图表宽度 */
+  height: 200px; /* 增加图表高度 */
+  margin: 20px auto; /* 居中显示 */
+}
+
+.fixed-category-box {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 200px;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  z-index: 1000;
+}
+
+.fixed-category-box h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
   text-align: center;
 }
-</style>
 
+.fixed-category-box ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.fixed-category-box li {
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+</style>
